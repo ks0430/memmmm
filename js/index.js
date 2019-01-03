@@ -16,9 +16,9 @@ let calculator = {
   currentValue: null,
   prevValue: null,
   currentOperator: null,
-  isWaitNextOpeartor: false,
-  timeEvents: [],
-  result: 0
+  isWaitNextOperand: false,
+  displayValue: "0",
+  timeEvents: []
 };
 
 // Main function
@@ -69,54 +69,59 @@ function bindKeyFunction() {
 
 function handleNumber(value) {
   // prase value to number
-  if (!calculator.currentValue) calculator.currentValue = "0"; // Prevent NaN
-  let currentValue = calculator.currentValue + value;
-  //   Set current value
-  calculator.currentValue = parseFloat(currentValue);
   testValue("number");
-  // render pressed number on screen
-  render(calculator.currentValue);
+
+  if (calculator.isWaitNextOperand) {
+    calculator.displayValue = value;
+    calculator.isWaitNextOperand = false;
+  } else {
+    let displayValue = calculator.displayValue;
+    calculator.displayValue =
+      displayValue === "0" ? value : displayValue + value;
+    calculator.isWaitNextOperand = false;
+  }
+
+  render(calculator.displayValue);
 }
 
 function handleOperator(operator) {
-  calculator.isWaitNextOpeartor = false;
-  if (calculator.currentOperator) calculator.isWaitNextOpeartor = true;
-  if (
-    calculator.isWaitNextOpeartor &&
-    calculator.prevValue &&
-    calculator.currentValue
-  ) {
-    // If
-    handleEqual();
-    calculator.currentValue = null;
+  if (calculator.isWaitNextOperand && calculator.currentOperator) {
     calculator.currentOperator = operator;
-  } else if (calculator.currentValue) {
-    calculator.prevValue = calculator.currentValue;
-    calculator.currentValue = null;
-    calculator.currentOperator = operator;
-  } else {
-    calculator.currentOperator = operator;
+    return;
   }
+  if (calculator.currentOperator && !calculator.isWaitNextOperand)
+    handleEqual();
 
-  testValue("operator");
+  calculator.prevValue = calculator.displayValue;
+  calculator.displayValue = "0";
+  calculator.currentOperator = operator;
+  calculator.isWaitNextOperand = true;
 }
 
 function handleEqual() {
+  if (!calculator.currentOperator) {
+    console.warn("warnning", calculator);
+    return;
+  }
+
   // If prev is null, then means only one operator, use current one.
   let result = handleResult(calculator.currentOperator);
 
-  calculator.result = result;
-  calculator.currentValue = null;
-  calculator.prevValue = calculator.result;
-  render(calculator.result); // render result
+  calculator.displayValue = result;
+  calculator.prevValue = calculator.displayValue;
   calculator.currentOperator = null;
+  calculator.currentValue = null;
+  render(calculator.displayValue); // render result
+  calculator.isWaitNextOperand = true;
   testValue("equal");
 }
 
 // When press equal, handle result
 function handleResult(operator) {
-  let result = calculator.result;
+  calculator.currentValue = parseFloat(calculator.displayValue);
+  calculator.prevValue = parseFloat(calculator.prevValue);
 
+  let result = null;
   switch (operator) {
     case "plus":
       result = calculator.prevValue + calculator.currentValue;
@@ -135,18 +140,13 @@ function handleResult(operator) {
       console.log("Error, this value is invaild!");
   }
 
-  if (!result) {
-    console.log("result is null");
-    return calculator.currentValue || calculator.prevValue;
-  }
-
   return result;
 }
 
 function handleClear() {
   calculator.currentValue = null;
   calculator.prevValue = null;
-  calculator.result = null;
+  calculator.displayValue = "0";
   calculator.currentOperator = null;
 
   testValue("Clear");
@@ -188,14 +188,12 @@ function removeTime() {
 }
 
 function handleDecimal() {
-  let value = calculator.currentValue;
+  let value = calculator.displayValue;
   //   If value has decimal then return
   if (value && value.toString().includes(".")) return;
-
-  if (!calculator.currentValue) calculator.currentValue = "0";
-
-  calculator.currentValue += ".";
-  render(calculator.currentValue);
+  calculator.displayValue += ".";
+  render(calculator.displayValue);
+  calculator.isWaitNextOperand = false;
 }
 
 // update calculator screen
