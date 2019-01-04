@@ -83,15 +83,11 @@ let initialGameStatus = () => {
 };
 
 class Game {
-  constructor(level = 1) {
-    this.label = Math.floor(Math.random() * 10);
-    this.cardList = [];
-    this.currentCardPair = [];
-    this.currentTimeEvents = null;
-    this.gameBoard = null;
-    this.score = 0;
-    this.currentLevel = level;
+  constructor(level = 1, score = 0) {
+    // Can be set outside Game
+    this.score = score;
     this.scoreIncrement = 20;
+    this.timer = 30;
     this.types = [
       "aws",
       "css3",
@@ -104,9 +100,16 @@ class Game {
       "react",
       "sass"
     ];
-    this.timer = 10;
+
+    // Current Game Object required arguments
+    this.currentCardPair = [];
+    this.currentLevel = level;
+    this.cardList = [];
+    this.currentTimeEvents = null;
     this.currentTimerInterval = null;
     this.onClick = this.onClick.bind(this);
+
+    // Initial Game
     this.initialGame(); // Constructor function
     this.gameTimer();
   }
@@ -138,7 +141,6 @@ class Game {
     gameboard.className = "game-main";
     let mainBoard = document.querySelector(".game-board");
     mainBoard.appendChild(gameboard);
-    this.gameBoard = gameboard;
 
     // Set card size
     let cardSize = 2 * this.currentLevel; // 2*3 = 6 , square which length is 6
@@ -154,11 +156,10 @@ class Game {
     typeList = [...typeList, ...typeList]; // 2.Get double type list
     typeList = exchange(typeList); // 3. Random type list
     console.log(typeList);
-
     //   Create random card
     for (let i = 0; i < cardListLength; i++) {
       let type = typeList.pop();
-      this.cardList.push(new Card(i, this.gameBoard, type, this.onClick));
+      this.cardList.push(new Card(gameboard, type, this.onClick));
     }
   }
 
@@ -176,6 +177,8 @@ class Game {
     time.style.background = color;
 
     let timerInterval = setInterval(() => {
+      this.timer--;
+
       // Set time
       time.innerHTML = this.timer + "s";
       //   Set progress bar
@@ -195,7 +198,6 @@ class Game {
         this.endGame();
         return;
       }
-      this.timer--;
     }, 1000);
     timeEventTrash.push({ type: "interval", event: timerInterval });
   }
@@ -203,7 +205,6 @@ class Game {
   endGame() {
     console.log("endGame");
     let game = document.querySelector(".game-main");
-    // game.remove();
     game.style.filter = "blur(8px)";
     let gameOver = document.querySelector(".game-over");
     gameOver.classList.add("game-over--visible");
@@ -221,7 +222,6 @@ class Game {
   onClick(card) {
     // If cardList's length is 0, means game finish
 
-    console.log(this);
     // 1.When select more than two cards, return
     if (this.currentCardPair.length > 1) {
       return; //have to card selection
@@ -255,9 +255,7 @@ class Game {
       ) {
         this.increaseScore();
         this.currentCardPair.map(card => {
-          card.onClick = () => {
-            console.log("events moved");
-          };
+          card.disable = true;
           this.cardList = this.cardList.filter(item => item !== card); // filter current card
         });
         //   Remove two cards from card list
@@ -270,20 +268,24 @@ class Game {
     //   If this is the last one, show win score
     if (this.cardList.length === 0) {
       console.log("Win your score is", this.score);
-      //   Start a new Game
-      new Game(this.currentLevel + 1);
+      // Wait 3 seconds before start new game
+      let waitForNewGame = setTimeout(() => {
+        //   Start a new Game
+        new Game(this.currentLevel + 1, this.score);
+      }, 3000);
+      clearTimeEventTrash();
+      timeEventTrash.push(waitForNewGame);
     }
   }
 }
 
 class Card {
-  constructor(index, parentNode, cardType, onClick) {
-    this.cardName = "";
-    this.index = index;
+  constructor(parentNode, cardType, onClick) {
     this.cardType = cardType;
     this.onClick = onClick;
     this.parentNode = parentNode;
     this.node = this.createNode();
+    this.disable = false;
   }
 
   createNode() {
@@ -294,6 +296,10 @@ class Card {
     card.appendChild(cardContent);
 
     card.addEventListener("click", () => {
+      if (this.disable) {
+        console.log("This card is disable");
+        return;
+      }
       this.onClick(this); // point to this card, not current node
     });
 
